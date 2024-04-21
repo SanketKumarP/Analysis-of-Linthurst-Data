@@ -1,0 +1,182 @@
+---
+title: 'PART I : Final Project : MATH 564'
+author: 'Sanketkumar Patel : A20523237'
+date: "2023-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Clearing workspace
+rm(list = ls())
+
+# Loading necessary libraries
+library(stats)
+library(corrplot)
+library(car)
+library(glmnet)
+library(DAAG)
+```
+
+#Reading Data from given txt files
+```{r}
+# For Linthall Data which is data considering all 14 variables
+LINTHALL <- as.data.frame(read.table("/Users/sanketpatel/Documents/MATH 564/Project/LINTHALL.txt",header = TRUE))
+
+# For Linth_5 Data which is with data considering 5 variable
+LINTH_5 <- read.table("/Users/sanketpatel/Documents/MATH 564/Project/LINTH-5.txt",header = TRUE)
+
+# Removing first three columns which are not necessary for the project
+LINTHALL <- LINTHALL[, -c(1,2,3)]
+LINTH_5 <- LINTH_5[, -c(1,2,3)]
+
+#Printing head of loaded data to check if data loaded properly 
+
+cat("LINTH Data with all independent variable")
+head(LINTHALL)
+
+cat("LINTH Data with only five independent variable")
+head(LINTH_5)
+```
+#Applying Original Model to Data
+
+```{r}
+# Applying ordinary least square model
+Linthall_model <- lm(BIO ~ H2S + SAL + Eh7 + pH + BUF + P + K + Ca + Mg + Na + Mn + Zn + Cu + NH4, data = LINTHALL)
+
+# Displaying summary of the model
+summary(Linthall_model)
+```
+**Answer of subquestion of part I: Use the ordinary least square estimation to estimate the regression coefficients.**
+```{r}
+# Print coefficients
+Estimated_coefficients <- coef(Linthall_model)
+cat("Estimated regression coefficients from ordinary least square estimation are as follows: ")
+Estimated_coefficients
+```
+
+**Collinearity diagnostics Method 1 : Collinearity diagnostics using VIF**
+
+```{r}
+cat("\n Values of VIF for Full model without dropping any variable are as follows :\n")
+vif(Linthall_model)
+```
+
+The Variance Inflation Factor (VIF) values measures the extent to which the variance of an estimated regression coefficient increases due to collinearity among the predictor variables, the general rule is that a VIF greater than 10 is indicative of significant collinearity.
+
+
+In results:
+
+Variables with Low VIF (Below 10) are:
+H2S: 3.14
+SAL: 3.36
+Eh7: 1.96
+P: 2.88
+K: 7.43
+Mn: 6.74
+Cu: 4.87
+NH4: 8.59
+These variables have low VIF values, suggesting that the collinearity for these variables is not a significant.
+
+Variables with Moderate to High VIF (Above 10) are:
+pH: 62.56
+BUF: 33.48
+Ca: 17.34
+Mg: 24.48
+Na: 10.37
+Zn: 12.39
+The variable pH has an extremely high VIF (62.56), indicating a strong correlation with the other predictors in the model. This high VIF for 'pH' suggests that there might be collinearity issues associated with this variable.
+
+In Summary:
+As VIF for pH, BUF, Ca, Mg, Na & Zn are above 10, suggesting significant collinearity is present in the model.
+
+
+**Collinearity diagnostics Method 2 : Collinearity diagnostics using Correlation matrix and Corrplot**
+
+```{r}
+# Making Correlation matrix
+correlation_matrix <- cor(LINTHALL[, c("H2S", "SAL", "Eh7", "pH", "BUF", "P", "K", "Ca", "Mg", "Na", "Mn", "Zn", "Cu", "NH4")])
+
+# Print correlation matrix
+cat("Correlation Matrix:\n\n")
+print(correlation_matrix)
+```
+```{r}
+# Correlation plot
+corrplot(
+  correlation_matrix,
+  method = "color",   # Use color to represent correlations
+  type = "upper",     # Display only upper triangle of the matrix
+  tl.cex = 0.7,       # Adjust size of text labels
+  tl.col = "black",   # Set color of text labels
+  col = colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "lightgreen", "green"))(200),  # Custom color palette
+  addCoef.col = "black",  # Set color of correlation coefficient text
+  number.cex = 0.7,   # Adjust size of correlation coefficient text
+  order = "hclust",   # Reorder variables using hierarchical clustering
+  hclust.method = "complete"  # Hierarchical clustering method
+)
+
+```
+
+Considering threshold value as 0.7 we can say that there are some collinearities are there in the data.
+
+Set 1: pH and Ca
+
+Set 2: pH and Zn
+
+Set 3: pH and BUF
+
+Set 4: pH and NH4
+
+Set 5: Ca and Zn
+
+Set 6: Ca and BUF
+
+Set 7: Cu and K
+
+Set 8: Cu and Mg
+
+Set 9: K and Mg
+
+Set 10: K and Na
+
+Set 11: Mg and Na
+
+Set 12: Zn and BUF
+
+Set 13: Zn and NH4
+
+Set 14: BUF and NH4
+
+following are the different sets of collinearity.
+
+1. pH,Zn,BUF,Ca         || All the variables have high correlations with each other
+
+2. Cu,K,Mg,Na           || All the variables have high correlations with each other
+
+following variables don't have significant correlation with any other variable. 
+
+H2S, SAL, Eh7, P, Mn, NH4
+
+
+
+
+
+**Answer of subquestion of part I: What is the consistent conclusion you can draw from the two methods**
+
+#Consistent Conclusion from both method can be given as follows:
+
+1. Both methods suggest pH, BUF, Ca, Mg, Na, and Zn variables with high collinearity: 
+
+2. Result obtained from both methods align with each other ,i.e. Identified sets by the correlation method align with the high VIF variables: pH, Ca, Zn, BUF, Cu, K, Mg, and Na.
+
+3. Variables H2S, SAL, Eh7, P, Mn, and NH4  have low VIF and also does not show strong correlations with any of the other variables in the correlation matrix.
+
+4. High VIF for pH, BUF, Ca, Mg, Na, and Zn, sugegsts to explore different method to remove collinearities. method such as variable selection, transformation, and regularization techniques can be benefical.
+
+5. Sets with high correlation identified by the correlation method (e.g., pH and Ca) reinforce the presence of collinearity and suggest potential variables that could be problematic in regression modeling.
+
+6. The consistency between the two methods enhances the confidence in the findings, as both VIF and correlation analyses independently highlight similar sets of variables with collinearity issues.

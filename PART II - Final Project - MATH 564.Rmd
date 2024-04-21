@@ -1,0 +1,377 @@
+---
+title: "PART II : Final Project : MATH 564"
+author: 'Sanketkumar Patel : A20523237'
+date: "2023-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Clearing workspace
+rm(list = ls())
+
+# Loading necessary libraries
+library(stats)
+library(corrplot)
+library(car)
+library(glmnet)
+library(DAAG)
+library(pls)
+```
+
+
+#Reading Data from given txt files
+```{r}
+# Reading the data from txt file
+LINTHALL <- as.data.frame(read.table("/Users/sanketpatel/Documents/MATH 564/Project/LINTHALL.txt",header = TRUE))
+LINTH_5 <- read.table("/Users/sanketpatel/Documents/MATH 564/Project/LINTH-5.txt",header = TRUE)
+
+# Removing first three columns which are not necessary for the project
+LINTHALL <- LINTHALL[, -c(1,2,3)]
+LINTH_5 <- LINTH_5[, -c(1,2,3)]
+```
+
+**First Creating three model models to check if employed code runs correctly**
+
+#Applying orgininal model to data 
+```{r}
+# Applying ordinary least square model
+Linthall_model <- lm(BIO ~ H2S + SAL + Eh7 + pH + BUF + P + K + Ca + Mg + Na + Mn + Zn + Cu + NH4, data = LINTHALL)
+
+# Displaying summary of the model
+summary(Linthall_model)
+```
+
+
+#Applying Standardized model to standardized data
+```{r}
+#Standardizing data
+LINTHALL_data_standardized <- as.data.frame(lapply(LINTHALL, function(x) scale(x, center = TRUE, scale = TRUE)))
+
+# Fitting the standardized model
+LINTHALL_model_standardized <- lm(BIO ~ H2S + SAL + Eh7 + pH + BUF + P + K + Ca + Mg + Na + Mn + Zn + Cu + NH4, data = LINTHALL_data_standardized)
+
+# Displaying summary of the model
+summary(LINTHALL_model_standardized)
+```
+#Calculating Eigen Values(i.e Lamdas') and Eigen Vectors and generating principal components
+
+```{r}
+# Making Correlation matrix
+correlation_matrix <- cor(LINTHALL[, c("H2S", "SAL", "Eh7", "pH", "BUF", "P", "K", "Ca", "Mg", "Na", "Mn", "Zn", "Cu", "NH4")])
+
+# Calculating eigenvalues and eigenvectors of Correlation Matrix
+result <- eigen(correlation_matrix)
+
+# Extracting eigenvalues and eigenvectors
+Lamda <- result$values
+V <- result$vectors
+
+#extracting standardized values of predictors from previous data set
+extracted_values<- as.matrix(LINTHALL_data_standardized[, c("H2S", "SAL", "Eh7", "pH", "BUF", "P", "K", "Ca", "Mg", "Na", "Mn", "Zn", "Cu", "NH4")])
+
+#Calculating principal components C1,C2...C14
+PCs_Calculated=(extracted_values)%*%V
+```
+
+#Applying Principal component regression on Principal component
+```{r}
+
+#Merged Data frame created for  Standardized response variable & the PCs values from above calculation
+data_of_Y_and_PCs <- data.frame(LINTHALL_data_standardized$BIO, PCs_Calculated)
+
+#Changing Column Names to make code easy.
+new_column_names <- c("Y_std", "c1", "c2","c3", "c4", "c5", "c6", "c7", "c8","c9", "c10", "c11", "c12","c13", "c14")
+colnames(data_of_Y_and_PCs) <- new_column_names
+
+#applying Regression model for Y_std and C1,C2,...C14
+Regression_using_PCs <- lm(Y_std ~ c1+c2+c3+c4+c5+c6+c7+c8+c9+c10+c11+c12+c13+c14, data = data_of_Y_and_PCs)
+
+#printing summary of model
+summary(Regression_using_PCs)
+```
+
+
+```{r}
+#Extracting alpha values from the model of principal components
+alpha_values<- matrix(coef(Regression_using_PCs)[-1],14,1)
+
+# Extracting the standard errors of alpha's from the model of principal components
+standard_errors <- matrix(summary(Regression_using_PCs)$coef[, 2][-1])
+```
+
+
+#Backtracing from PCR model to standardized model and checking if we get same value of theata or not.
+
+```{r}
+#Calculating Theata from the eigen vectors and alpha values obtained from above model
+
+theta_values= V %*% alpha_values
+
+# Create a new 14x14 matrix to store the squared elements
+V_square <- matrix(0, nrow = 14, ncol = 14)
+
+# Square each element of A and store it in B
+for (i in 1:14) {
+  for (j in 1:14) {
+    V_square[i, j] <- V[i, j] * V[i, j]
+  }
+}
+
+# Create a new 14x1 matrix to store the squared elements
+Squared_standard_error <- matrix(0, nrow = 14, ncol = 1)
+
+# Square each element of A and store it in B
+for (i in 1:14) {
+    Squared_standard_error[i, 1] <- standard_errors[i, 1] * standard_errors[i, 1]
+}
+
+variance_of_thata_values= V_square %*% Squared_standard_error
+
+# Create a new 14x1 matrix to store the squared elements
+Sqrt_variance_of_thata_values <- matrix(0, nrow = 14, ncol = 1)
+# Square each element of A and store it in B
+for (i in 1:14) {
+    Sqrt_variance_of_thata_values[i, 1] <- sqrt(variance_of_thata_values[i, 1])
+}
+
+cat("Following are values of Theta:\n")
+theta_values
+cat("Following are values of standard error of theta:\n")
+Sqrt_variance_of_thata_values
+
+```
+#employed code is right as we are getting same answer of theatas and S.E of theatas    
+
+#Backtracing from PCR model to original model and checking if we get same value of beta's or not.
+```{r}
+
+# Calculate the mean of each column
+means <- matrix(colMeans(LINTHALL))
+
+# Calculate the standard deviation of each column
+sds <- matrix(apply(LINTHALL, 2, sd))
+
+#Creading one matrix for means of perdictors only
+means_of_predictors <- matrix(means[2:15,1])
+
+
+# Calculating beta values from book eq. 10.24
+beta_values <- numeric(length = length(sds)-1)
+for (i in seq_along(beta_values)) {
+  beta_values[i] <- sds[1] / sds[i+1] * theta_values[i]
+}
+
+#Calculating beta_0 value from book eq. 10.24
+beta_value_0<-as.numeric(means[1]-beta_values[1]*means[2]-beta_values[2]*means[3]-beta_values[3]*means[4]-beta_values[4]*means[5]-beta_values[5]*means[6]-beta_values[6]*means[7]-beta_values[7]*means[8]-beta_values[8]*means[9]-beta_values[9]*means[10]-beta_values[10]*means[11]-beta_values[11]*means[12]-beta_values[12]*means[13]-beta_values[13]*means[14]-beta_values[14]*means[15])
+
+beta_values <- c(beta_value_0, beta_values)
+beta_values <- matrix(beta_values, nrow = 15, ncol = 1)
+
+cat("Beta Values for original model are as follows:\n")
+beta_values
+
+# Create a new 14x1 matrix to store the squared elements
+standard_error_of_beta <- matrix(0, nrow = 14, ncol = 1)
+
+# Square each element of A and store it in B
+for (i in 1:14) {
+    standard_error_of_beta[i, 1] <- sds[1] / sds[i+1] * sqrt(variance_of_thata_values[i, 1])
+}
+
+SE_of_beta_into_means <-matrix(0, nrow = 14, ncol = 1)
+# Square each element of A and store it in B
+for (i in 1:14) {
+    SE_of_beta_into_means[i, 1] <- standard_error_of_beta[i, 1] * means[i+1]*standard_error_of_beta[i, 1] * means[i+1]
+}
+
+# Calculate the sum of all elements in the matrix
+standard_error_of_beta_0 <- sqrt(sum(SE_of_beta_into_means))
+
+standard_error_of_beta <- as.matrix(c(standard_error_of_beta_0, standard_error_of_beta),15,1)
+cat("Following are values of standard error of beta:\n")
+standard_error_of_beta
+
+```
+#employed code is right as we are getting same answer of betas and S.E of betas    
+
+
+#Dropping Principal components based on Eigen values
+```{r}
+Lamda
+```
+
+If we oberserve above eigen value then we can observe that lamda12, lamda13 & lamda14 are very close to zero.
+
+As per the book : lamda_j is the variance of the jth PC, if lamda_j is approximately zero, the corresponding PC, Cj, is approximately equal to a constant. It follows that the equation defining the PC gives some idea about the type of relationship among the predictor variables that is causing collinearity. 
+
+hence we can drop C12,C13 & C14 PCs.
+
+#Same conclusion can be drawn from following graphs:
+```{r}
+fit <- pcr(Y_std ~., data = data_of_Y_and_PCs, validation="CV")
+summary(fit)
+
+validationplot(fit, val.type="RMSEP", cex.axis=1)
+axis(side = 1, at = c(8), cex.axis=1)
+abline(v = 10, col = "blue", lty = 3)
+
+validationplot(fit, val.type="MSEP", cex.axis=0.7)
+axis(side = 1, at = c(8), cex.axis=0.7)
+abline(v = 10, col = "blue", lty = 3)
+validationplot(fit, val.type="R2", cex.axis=0.7)
+axis(side = 1, at = c(8), cex.axis=0.7)
+abline(v = 10, col = "blue", lty = 3)
+```
+
+#Hence we should proceed with 11 principal components as RMSEP & MSEP is optimal with 11 number of principal components and R^2 is at peak with 11 principal components. all three parameters are changing in desirable direction hence. we should remove 3 PCs.
+
+
+#Hence both the method suggest to keep 11 PCs.
+
+
+**Applying Principal components for remaining 11 Principal components.**
+```{r}
+#applying Regression model for Y_std and C1,C2 and C3 (Reduced Model)
+Regression_using_Reduced_PCs <- lm(Y_std ~ c1+c2+c3+c4+c5+c6+c7+c8+c9+c10+c11, data = data_of_Y_and_PCs)
+
+#printing summary of reduced model
+summary(Regression_using_Reduced_PCs)
+```
+
+**Calculating Theata from the eigen vectors and alpha values obtained from above reduced model**
+```{r}
+# Extracting the coefficients
+coefficients <- Regression_using_Reduced_PCs$coefficients
+
+#Making alpha values matrix from the extracted coefficient 
+alpha_values_for_reduced_model <- c(coefficients["c1"], coefficients["c2"], coefficients["c3"],coefficients["c4"], coefficients["c5"], coefficients["c6"],coefficients["c7"], coefficients["c8"], coefficients["c9"],coefficients["c10"], coefficients["c11"], 0, 0,0)
+
+#Changing it to matrix to perform matrix multiplication
+alpha_values_for_reduced_model<-matrix(alpha_values_for_reduced_model,14,1)
+
+#Calculating theata values
+theta_values_for_reduced_model=V%*%alpha_values_for_reduced_model
+
+
+# Extract the standard errors
+standard_errors_reducemodel <- rbind(matrix(summary(Regression_using_Reduced_PCs)$coef[, 2][-1]),matrix(0, nrow = 3, ncol = 1))
+
+
+# Create a new 14x1 matrix to store the squared elements
+Squared_std_errors_reducemodel <- matrix(0, nrow = 14, ncol = 1)
+
+# Square each element of A and store it in B
+for (i in 1:14) {
+    Squared_std_errors_reducemodel[i, 1] <- standard_errors_reducemodel[i, 1] * standard_errors_reducemodel[i, 1]
+}
+
+variance_of_thata_values_reducedmodel= V_square %*% Squared_std_errors_reducemodel
+
+# Create a new 14x1 matrix to store the squared elements
+Sqrt_variance_of_thata_values_reducedmodel <- matrix(0, nrow = 14, ncol = 1)
+# Square each element of A and store it in B
+for (i in 1:14) {
+    Sqrt_variance_of_thata_values_reducedmodel[i, 1] <- sqrt(variance_of_thata_values_reducedmodel[i, 1])
+}
+
+cat("Following are values of Theta values for reduced model:\n")
+theta_values_for_reduced_model
+cat("Following are values of standard error of theta for reduced model:\n")
+Sqrt_variance_of_thata_values_reducedmodel
+
+```
+
+**Answer of sub question of part II:compute the regression coefficients βˆj in the original multiple linear regression model.**
+
+**Calculating alpha values from the theata values and mean and standard deviations of data**
+
+```{r}
+# Calculate beta values
+beta_values_for_reduced_model <- numeric(length = length(sds)-1)
+for (i in seq_along(beta_values_for_reduced_model)) {
+  beta_values_for_reduced_model[i] <- sds[1] / sds[i+1] * theta_values_for_reduced_model[i]
+}
+
+beta_values_for_reduced_model_0<-as.numeric(means[1]-beta_values_for_reduced_model[1]*means[2]-beta_values_for_reduced_model[2]*means[3]-beta_values_for_reduced_model[3]*means[4]-beta_values_for_reduced_model[4]*means[5]-beta_values_for_reduced_model[5]*means[6]-beta_values_for_reduced_model[6]*means[7]-beta_values_for_reduced_model[7]*means[8]-beta_values_for_reduced_model[8]*means[9]-beta_values_for_reduced_model[9]*means[10]-beta_values_for_reduced_model[10]*means[11]-beta_values_for_reduced_model[11]*means[12]-beta_values_for_reduced_model[12]*means[13]-beta_values_for_reduced_model[13]*means[14]-beta_values_for_reduced_model[14]*means[15])
+
+beta_values_for_reduced_model <- matrix(c(beta_values_for_reduced_model_0, beta_values_for_reduced_model))
+
+cat("Beta Values for reduced model are as follows:\n")
+beta_values_for_reduced_model
+```
+
+
+**Answer of sub question of part II:Compare the standard error sum Pj s.e.(βˆj ) and SSE with their counterparts in Part I.**
+
+**Calculating and comparing S.E of alpha values from the theata values and mean and standard deviations of data**
+
+```{r}
+# Create a new 14x1 matrix to store the squared elements
+standard_error_of_beta_reduced <- matrix(0, nrow = 14, ncol = 1)
+
+# Square each element of A and store it in B
+for (i in 1:14) {
+    standard_error_of_beta_reduced[i, 1] <- sds[1] / sds[i+1] * sqrt(variance_of_thata_values_reducedmodel[i, 1])
+}
+
+
+SE_of_beta_reducedmodel_into_means <-matrix(0, nrow = 14, ncol = 1)
+# Square each element of A and store it in B
+for (i in 1:14) {
+    SE_of_beta_reducedmodel_into_means[i, 1] <- standard_error_of_beta_reduced[i, 1] * means[i+1]
+}
+
+# Calculate the sum of all elements in the matrix
+matrix_sum <- sum(SE_of_beta_reducedmodel_into_means)
+
+
+SE_of_beta_for_reduced_model <- matrix(c(matrix_sum, standard_error_of_beta_reduced))
+
+cat("\nStandard error beta for reduced model are as follows:\n")
+SE_of_beta_for_reduced_model
+
+standard_errors_full_model <- matrix(summary(Linthall_model)$coef[, 2])
+cat("\nStandard error beta for full model are as follows:\n")
+standard_errors_full_model
+
+cat("\nSum Standard error beta for reduced model is:", sum(SE_of_beta_for_reduced_model))
+cat("\nSum Standard error beta for full model is:", sum(standard_errors_full_model))
+
+
+```
+
+
+**Above is the comparison of Sum of standard error beta.**
+
+#Note: Not able to calculate S.E of beta_0 properly from the formula.
+
+**Comparing SSE of full model and reduced model**
+
+```{r}
+
+sse1 <- sum(residuals(Linthall_model)^2)
+
+cat("\nSSE for full model are as follows:",sse1)
+Dumy_linthall<- LINTHALL
+Dumy_linthall <- as.matrix(Dumy_linthall)
+
+beta_values_for_reduced_model <- as.matrix(as.numeric(beta_values_for_reduced_model))
+
+# Assuming Dumy_linthall is your data frame
+Dumy_linthall[, 1] <- 1
+
+Y_predict <- Dumy_linthall %*% beta_values_for_reduced_model
+
+Residuals_calculated<- LINTHALL[,1] - Y_predict[,1]
+
+SSe<-sum(Residuals_calculated^2)
+
+cat("\nSSE for reduced model are as follows:", SSe)
+```
+
+**SSE has increase for the reduced model**
+

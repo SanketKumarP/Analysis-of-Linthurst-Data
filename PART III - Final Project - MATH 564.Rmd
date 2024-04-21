@@ -1,0 +1,416 @@
+---
+title: "PART III : Final Project : MATH 564"
+author: 'Sanketkumar Patel : A20523237'
+date: "2023-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Loading required libraries
+```{r}
+
+# Clearing workspace
+rm(list = ls())
+
+# Loading necessary libraries
+library(stats)
+library(corrplot)
+library(car)
+library(glmnet)
+library(DAAG)
+library(pls)
+library(MASS)
+library(car)
+library(leaps)
+library(ggplot2)
+library(lmridge)
+```
+
+
+#Reading Data from given txt files
+```{r}
+
+# Reading the data from txt file
+LINTH_5 <- read.table("/Users/sanketpatel/Documents/MATH 564/Project/LINTH-5.txt",header = TRUE)
+
+# Removing first three columns which are not necessary for the project
+LINTH_5 <- LINTH_5[, -c(1,2,3)]
+```
+
+**Problem 1 of PART III : Use the stepwise regression method to decide the best model. Use significance level αE = αR = 0.10. At each step, report the result of regression, indicate which predictor variable enters or leaves the model, and how the decision is made. In the end, run the collinearity diagnostics again to verify that collinearity has disappeared.**
+
+
+#Deciding order in which variable should enter model.
+```{r}
+# Step 3: Calculate the correlation matrix
+correlation_matrix <- cor(LINTH_5)
+# Print the correlation matrix
+print(correlation_matrix)
+```
+From the correlation matrix above, The order in which the variables should be added for stepwise regression is as follows:
+
+1. pH
+2. Zn
+3. Na
+4. K
+5. SAL
+
+Order decided based on correlation with BIO, and set them in decreasing order.
+
+##pH variable entering in empty Model
+```{r}
+# Applying ordinary least square model
+stepwise_model1 <- lm(BIO ~  pH , data = LINTH_5)
+summary(stepwise_model1)
+
+# Extract t-test information for the pH variable
+t_test_result <- coef(summary(stepwise_model1))["pH", c("t value", "Pr(>|t|)")]
+
+# Display the t-test results
+cat("T-test results for pH variable:\n")
+cat("t-value:", t_test_result["t value"], "\n")
+cat("p-value:", t_test_result["Pr(>|t|)"], "\n")
+
+# Check for significance at alpha = 0.10
+alpha <- 0.10
+if (t_test_result["Pr(>|t|)"] < alpha) {
+  cat("The pH variable is statistically significant at the", alpha, "level.\n")
+} else {
+  cat("The pH variable is not statistically significant at the", alpha, "level.\n")
+}
+
+```
+
+In first setp:
+
+Forward step :Ph entered the model, stayed in the model due to statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+Hence pH variable staying.
+
+##Zn variable entering in Model
+```{r}
+# Applying ordinary least square model
+stepwise_model2 <- lm(BIO ~  pH + Zn , data = LINTH_5)
+summary(stepwise_model2)
+
+# Extract t-test information for the pH variable
+t_test_result <- coef(summary(stepwise_model2))["Zn", c("t value", "Pr(>|t|)")]
+
+# Display the t-test results
+cat("T-test results for Zn variable:\n")
+cat("t-value:", t_test_result["t value"], "\n")
+cat("p-value:", t_test_result["Pr(>|t|)"], "\n")
+
+# Check for significance at alpha = 0.10
+alpha <- 0.10
+if (t_test_result["Pr(>|t|)"] < alpha) {
+  cat("The Zn variable is statistically significant at the", alpha, "level.\n")
+} else {
+  cat("The Zn variable is not statistically significant at the", alpha, "level.\n")
+}
+
+```
+
+In Second setp:
+
+Forward step : Zn entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+Hence Zn variable not staying.
+
+##Na entering in Model
+```{r}
+# Applying ordinary least square model
+stepwise_model3 <- lm(BIO ~  pH + Na , data = LINTH_5)
+summary(stepwise_model3)
+
+# Extract t-test information for the pH variable
+t_test_result <- coef(summary(stepwise_model3))["Na", c("t value", "Pr(>|t|)")]
+
+# Display the t-test results
+cat("T-test results for Na variable:\n")
+cat("t-value:", t_test_result["t value"], "\n")
+cat("p-value:", t_test_result["Pr(>|t|)"], "\n")
+
+# Check for significance at alpha = 0.10
+alpha <- 0.10
+if (t_test_result["Pr(>|t|)"] < alpha) {
+  cat("The Na variable is statistically significant at the", alpha, "level.\n")
+} else {
+  cat("The Na variable is not statistically significant at the", alpha, "level.\n")
+}
+
+```
+
+In Third setp:
+
+Forward step : Na entered the model, stayed in the model due to statistically significance.
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+Hence Na variable staying.
+
+##K entering in Model
+```{r}
+# Applying ordinary least square model
+stepwise_model4 <- lm(BIO ~  pH + Na + K , data = LINTH_5)
+summary(stepwise_model4)
+
+# Extract t-test information for the pH variable
+t_test_result <- coef(summary(stepwise_model4))["K", c("t value", "Pr(>|t|)")]
+
+# Display the t-test results
+cat("T-test results for K variable:\n")
+cat("t-value:", t_test_result["t value"], "\n")
+cat("p-value:", t_test_result["Pr(>|t|)"], "\n")
+
+# Check for significance at alpha = 0.10
+alpha <- 0.10
+if (t_test_result["Pr(>|t|)"] < alpha) {
+  cat("The K variable is statistically significant at the", alpha, "level.\n")
+} else {
+  cat("The K variable is not statistically significant at the", alpha, "level.\n")
+}
+
+```
+In Fourth setp:
+
+Forward step : K entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+Hence K is not staying in the model
+
+##SAL entering in Model
+```{r}
+# Applying ordinary least square model
+stepwise_model5 <- lm(BIO ~  pH + Na + SAL , data = LINTH_5)
+summary(stepwise_model5)
+
+# Extract t-test information for the pH variable
+t_test_result <- coef(summary(stepwise_model5))["SAL", c("t value", "Pr(>|t|)")]
+
+# Display the t-test results
+cat("T-test results for SAL variable:\n")
+cat("t-value:", t_test_result["t value"], "\n")
+cat("p-value:", t_test_result["Pr(>|t|)"], "\n")
+
+# Check for significance at alpha = 0.10
+alpha <- 0.10
+if (t_test_result["Pr(>|t|)"] < alpha) {
+  cat("The SAL variable is statistically significant at the", alpha, "level.\n")
+} else {
+  cat("The SAL variable is not statistically significant at the", alpha, "level.\n")
+}
+
+```
+
+In Fifth setp:
+
+Forward step : SAL entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+Hence SAL is not staying in the model.
+
+Hence only pH and Na are the final variables for stepwise variable selection method. following is the final model
+
+##Final Model
+```{r}
+library(car)
+# Applying ordinary least square model
+Final_Stepwise <- lm(BIO ~  pH + Na , data = LINTH_5)
+summary(Final_Stepwise)
+```
+#Applying Collinearity diagnostics to check if Collinearity has been disappeared or not.
+```{r}
+X <- as.matrix(LINTH_5[, c("pH", "Na")])
+corr_matrix<-cor(X)
+
+# Calculating eigenvalues of Correlation Matrix
+result <- eigen(corr_matrix)
+
+# Extracting eigenvalues
+Lamda <- result$values
+
+sum_of_reciprocal <- 1/Lamda[1]+1/Lamda[2]
+cat("Sum of reciprocal of eigen values is ", sum_of_reciprocal, "\n")
+```
+
+#Since reciprocal of eigen value is less then 5 times number of variable (i.e 10) . Hence it can be concluded that collinearity has disappeared 
+
+Hence summary of steps can be given as follows:
+
+In first setp:
+
+Forward step :Ph entered the model, stayed in the model due to statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+In Second setp:
+
+Forward step : Zn entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+In Third setp:
+
+Forward step : Na entered the model, stayed in the model due to statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+In Fourth setp:
+
+Forward step : K entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+In Fifth setp:
+
+Forward step : SAL entered the model, but left the model due to not statistically significance
+
+Backward step : all variable in the model are statistically significant hence no variable removed.
+
+
+Final Model is with variable pH and Na, without collinearity.
+
+**Problem 2 of PART III : Use ridge regression on the 5-predictor model, and use ridge trace to do variable selection. Refit the model that includes the remaining variables and then run the collinearity diagnostics again to verify that collinearity has disappeared.**
+
+```{r}
+#Standardizing data
+LINTH_5_data_standardized <- as.data.frame(lapply(LINTH_5, function(x) scale(x, center = TRUE, scale = TRUE)))
+
+#Fitting Ridge model
+mod <- lmridge(BIO ~., as.data.frame(LINTH_5_data_standardized), K = seq(0, 1, 0.002))
+
+## Plotting Ridge trace plot
+plot(mod, type = "ridge", abline = TRUE, ylim = c(-10, 10))
+```
+
+#The ridge trace is used to eliminate variables from the equation. The guidelines for elimination of variable as given in the book are as follows.
+
+1. Eliminate variables whose coefficients are stable but small. Since ridge regression is applied to standardized data, the magnitude of the various coefficients are directly comparable.
+2. Eliminate variables with unstable coefficients that do not hold their predicting power, that is, unstable coefficients that tend to zero.
+3. Eliminate one or more variables with unstable coefficients. The variables remaining from the original set, say p in number, are used to form the regression equation.
+
+At the end of each of the above steps, we refit the model that includes the remaining variables before we proceed to the next.
+
+**Observation and Decision:**
+
+#form the first step:
+
+1. We can eliminate SAL,K,Na variable because coefficients of those are stable but small. Since ridge regression is applied to standardized data, the magnitude of the various coefficients are directly comparable.
+
+#Refitting model on remaining variables
+```{r}
+mod2 <- lmridge(BIO ~ pH + Zn, as.data.frame(LINTH_5_data_standardized), K = seq(0, 1, 0.002))
+
+## Ridge trace without abline
+# Plot the ridge trace with custom Y-axis range
+plot(mod2, type = "ridge", abline = TRUE, ylim = c(-10, 10))
+```
+
+#No variable can be removed from step 2 and step 3 as no condition are being met to remove variable.
+
+from the above graph  the optimal value of K=0.074 with min MSE hence our final model can be given as following.
+
+#Final Model
+```{r}
+mod3 <- lmridge(BIO ~ pH + Zn, as.data.frame(LINTH_5_data_standardized), K = 0.074)
+summary(mod3)
+```
+#Applying Collinearity diagnostics to check if Collinearity has been disappeared or not.
+
+```{r}
+X <- as.matrix(LINTH_5[, c("pH", "Zn")])
+corr_matrix<-cor(X)
+
+# Calculating eigenvalues of Correlation Matrix
+result <- eigen(corr_matrix)
+
+# Extracting eigenvalues
+Lamda <- result$values
+
+sum_of_reciprocal <- 1/Lamda[1]+1/Lamda[2]
+cat("Sum of reciprocal of eigen values is ", sum_of_reciprocal, "\n")
+```
+Since reciprocal of eigen value is less then 5 times number of variable (i.e) . Hence it can be concluded that collinearity has disappeared 
+
+**Problem 3 of PART III : Use the subset selection method to decide the best two-variable model on the basis of BIC. If there is a tie, use VIF to break the tie.**
+
+```{r}
+# Read the data
+data <- LINTH_5
+
+# Defining response and predictor variables
+response_var <- "BIO"
+predictor_vars <- c("SAL", "pH", "K", "Na", "Zn")
+
+# Creating a data frame with predictor variables
+X <- data[, predictor_vars, drop = FALSE]
+y <- data[, response_var]
+
+# Function to fit a linear model and calculate BIC
+fit_model_and_bic <- function(variables) {
+  formula <- as.formula(paste(response_var, "~", paste(variables, collapse = "+")))
+  model <- lm(formula, data = data)
+  bic <- BIC(model)
+  return(bic)
+}
+
+# Generate all possible combinations of 2 variables
+combos <- combn(predictor_vars, 2, simplify = TRUE)
+
+# Apply the function to calculate BIC for each combination
+bic_values <- apply(combos, 2, fit_model_and_bic)
+
+# Find the model with the lowest BIC
+best_model_index <- which.min(bic_values)
+best_model <- combos[, best_model_index]
+
+# Check for ties and break ties using VIF
+if (length(best_model_index) > 1) {
+  vif_values <- apply(combos, 2, function(vars) {
+    model <- lm(as.formula(paste(response_var, "~", paste(vars, collapse = "+"))), data = data)
+    vif_values <- car::vif(model)
+    max_vif <- max(vif_values)
+    return(max_vif)
+  })
+
+  # Select the model with the lowest VIF among tied models
+  best_model <- combos[, which.min(vif_values)]
+}
+
+# Fit the final model with the selected variables
+final_model <- lm(as.formula(paste(response_var, "~", paste(best_model, collapse = "+"))), data = data)
+
+# Display the summary of the final model
+summary(final_model)
+
+```
+Hence final model is with variable pH and Na considering subset selection method to decide the best two-variable model on the basis of BIC.
+
+#Same Can be concluded with following inbuilt function.
+
+```{r}
+
+subset<-regsubsets(BIO ~SAL+pH+K+Na+Zn, data = LINTH_5, nbest=2,nvmax=5)
+info <- summary(subset)
+cbind(info$which, round(cbind(rsq=info$rsq, cp=info$cp, bic=info$bic,rss=info$rss), 3))
+
+```
+
+Since BIC of 2 variable model with pH and Na is less among all other two variable. hence that’s our final model.
+
+
+
+
+
+
+
